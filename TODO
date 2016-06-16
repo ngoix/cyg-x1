@@ -2,4 +2,11 @@ idem iforest avec oneclassforest, gmm, dpgmm
 
 rajouter le scoring d'iforest dans les données avant d'appliquer gmm
 
+-visualiser les probas d'états pour hmm en fct du temps (cf repo andy), et idem pour gmm
+-bic and aic for gmm
+-pomegrenade pour meilleurs hmm?
 
+
+
+discussion interessante:
+https://github.com/hmmlearn/hmmlearn/issues/118
