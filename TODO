@@ -7,6 +7,18 @@ rajouter le scoring d'iforest dans les données avant d'appliquer gmm
 -pomegrenade pour meilleurs hmm?
 
 
+- plot en dimension 4 !!! (ou plusieurs de dimension 3)
+- percentile
+- bic vs nb_comp
+- issue for sklearn bic/aic
+
+- daniela points to issue pomegranate
+
+- migration vers conda: supprimer le chgmt de path du bashrc et mettre tout dans conda y compris le pip (attendre romain?)
+
+-datamicrocospe http://datamicroscopes.github.io/
+
+- bic/aic for hmm
 
 discussion interessante:
 https://github.com/hmmlearn/hmmlearn/issues/118
