@@ -22,3 +22,7 @@ rajouter le scoring d'iforest dans les données avant d'appliquer gmm
 
 discussion interessante:
 https://github.com/hmmlearn/hmmlearn/issues/118
+
+
+-tracer ellipse et points sur chaque scatter
+-comparer les likelihood
