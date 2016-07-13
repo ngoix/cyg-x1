@@ -8,6 +8,7 @@ from datashader.bokeh_ext import InteractiveImage
 from bokeh.palettes import Spectral9
 from bokeh.io import gridplot
 from bokeh.plotting import Figure
+from bokeh.models import ColumnDataSource
 
 import seaborn as sns
 import pandas as pd
@@ -25,7 +26,9 @@ def mask(data, exception_cols=[], p=99.9):
     for col in data.columns:
         if col not in exception_cols:
             mask = mask & (data[col] < np.percentile(data[col], p))
-    data_thr = pd.DataFrame({col: data[col][mask] for col in data.columns})
+    data_thr = pd.DataFrame(np.array([data[col][mask]
+                                      for col in data.columns]).T)
+    data_thr.columns = data.columns
     return data_thr
 
 
@@ -78,7 +81,11 @@ def bokeh_datashader_plot(data, covs=None, means=None, covs_indices=None,
                           pred_name='preds', title=None,
                           plot_width=150, plot_height=150,
                           pixel_width=500, pixel_height=500,
-                          spread=False, color_key=Spectral9):
+                          spread=False, color_key=None):
+
+    if color_key is None:
+        color_key = ["red", "blue", "yellow", "grey", "black", "purple",
+                     "pink", "brown", "green", "orange"]
 
     TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,lasso_select"
 
@@ -161,10 +168,14 @@ def bokeh_datashader_plot(data, covs=None, means=None, covs_indices=None,
 
 def scatter_matrix(data, covs=None, means=None, covs_indices=None,
                    pred_name='preds',
-                   spread=False, color_key=Spectral9):
+                   spread=False, color_key=None):
     # if the covariance matrix has lower dim than data (because the estimator
     # has not been trained with all features), the missing features are assumed
     # to be the last of data.columns excepting if covs_indices is not None.
+
+    if color_key is None:
+        color_key = ["red", "blue", "yellow", "grey", "black", "purple",
+                     "pink", "brown", "green", "orange"]
     figs = []
     columns = list(data.columns)
     columns.remove(pred_name)
@@ -217,7 +228,11 @@ def scatter_matrix_seaborn(data, y='preds', vars=None, size=1.7):
 
 
 def plot_probas(data, probs, cola='rateCA', colb='rate',
-                delta=10, window=100, color_key=['r', 'g', 'b']):
+                delta=10, window=100, color_key=None):
+
+    if color_key is None:
+        color_key = ["red", "blue", "yellow", "grey", "black", "purple",
+                     "pink", "brown", "green", "orange"]
 
     preds = data['preds']
     cm = ListedColormap(color_key)
@@ -264,7 +279,8 @@ def plot_probs_bokeh_linked_brushing(data,
                                      covs=None, means=None,
                                      spread=False, color_key=None,
                                      plot_width=900, plot_height=300,
-                                     radius1=0.001, radius2=0.001,
+                                     # radius1=0.01,
+                                     # radius2=30., line_width2=0,
                                      title=None):
     '''
     return a linked brushing interactive bokeh plot
@@ -295,7 +311,7 @@ def plot_probs_bokeh_linked_brushing(data,
     source = ColumnDataSource(data)
 
     colors = [color_key[x] for x in data[pred_name]]
-    fig.circle(x_name, y_name, source=source, color=colors, radius=radius1)
+    fig.circle(x_name, y_name, source=source, color=colors)  # , radius=radius1
 
     if covs is not None:
             for n_comp in range(len(covs)):
@@ -316,6 +332,7 @@ def plot_probs_bokeh_linked_brushing(data,
                 fig.line(a, b, color=color_key[n_comp])
 
     n_samples = data.shape[0]
+    print n_samples
     fig2 = Figure(x_range=(0, n_samples),
                   y_range=(-0.01, 1.01),
                   plot_width=plot_width,
@@ -324,8 +341,9 @@ def plot_probs_bokeh_linked_brushing(data,
                   tools=TOOLS)
     for n, prob_name in enumerate(prob_names):
         fig2.circle(range(n_samples), prob_name, source=source,
-                    color=color_key[n], radius=radius2)
-
+                    color=color_key[n])
+        # fig2.line(range(n_samples), prob_name, source=source,
+        #           color=color_key[n])
     p = gridplot([[fig], [fig2]])
     return p
 

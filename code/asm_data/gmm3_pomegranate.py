@@ -3,7 +3,6 @@ from visualization_fct import *
 
 from bokeh.resources import CDN
 from bokeh.embed import file_html
-from bokeh.plotting import show
 
 
 from pomegranate import GeneralMixtureModel
@@ -21,14 +20,14 @@ del data['errorB']
 del data['errorC']
 data['rateCA'] = data.rateC / data.rateA
 data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
-data_thr = data
 
 np.random.seed(0)
 
 if without_CA:
     X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
               data_thr.rateC]
-    Html_file = open("gmm3_pomegranate_files/gmm3_pomegranate_without_rateCA.html", "w")
+    Html_file = open(
+        "gmm3_pomegranate_files/gmm3_pomegranate_without_rateCA.html", "w")
 else:
     X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
               data_thr.rateC, data_thr.rateCA]
@@ -47,8 +46,10 @@ color_key = ["red", "blue", "yellow", "grey", "black", "purple", "pink",
              "brown", "green", "orange"]  # Spectral9
 color_key = color_key[:len(set(preds))+1]
 
-covs = np.array([np.array(gmm.distributions[m].parameters[1]) for m in range(len(gmm.distributions))])
-means = np.array([np.array(gmm.distributions[m].parameters[0]) for m in range(len(gmm.distributions))])
+covs = np.array([np.array(gmm.distributions[m].parameters[1])
+                 for m in range(len(gmm.distributions))])
+means = np.array([np.array(gmm.distributions[m].parameters[0])
+                  for m in range(len(gmm.distributions))])
 
 # # uncomment  to show interactive probas:
 # p = plot_probas(data_thr, probs)
@@ -58,18 +59,26 @@ means = np.array([np.array(gmm.distributions[m].parameters[0]) for m in range(le
 # # waiting for InteractiveImage -> html
 
 
+# pair plots with predicted classes and ellipses:
 p = scatter_matrix(data_thr, spread=False, covs=covs, means=means,
                    color_key=color_key)
+
 html = file_html(p, CDN, "pomegranate gmm with 3 components")
 Html_file.write(html)
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
-x = 5
-y = 1
-covs_xy = [covs[j][[x, y]][:, [x, y]] for j in range(covs.shape[0])]
-means_xy = [means[j][[x, y]] for j in range(covs.shape[0])]
+
+# single plot rateCA vs rate with predicted classes and ellipses:
+if without_CA:
+    covs_xy = None
+    means_xy = None
+else:
+    x = 5
+    y = 1
+    covs_xy = [covs[j][[x, y]][:, [x, y]] for j in range(len(covs))]
+    means_xy = [means[j][[x, y]] for j in range(len(covs))]
 
 single_plot = bokeh_datashader_plot(data_thr, covs=covs_xy, means=means_xy,
                                     x_name='rateCA',
@@ -84,9 +93,10 @@ Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 
+# histogram rateCA:
 p = Figure()
 rateCA = np.array(data_thr['rateCA'])
-hist, edges = np.histogram(rateCA[rateCA > 20], bins=100)
+hist, edges = np.histogram(rateCA, bins=100)
 p.quad(top=hist, bottom=0, left=edges[:-1], right=edges[1:])
 html = file_html(p, CDN, "hist rateCA")
 Html_file.write(html)
@@ -95,17 +105,38 @@ Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 
+# probas with datashader:
 fig = plot_probs_datashader(probs)
 html = file_html(fig, CDN, "probas with datashader")
 Html_file.write(html)
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 
-# fig = scatter_matrix_seaborn(data_thr)
-# plt.title('seaborn_scatterplot')
-# fig.fig.savefig('gmm3_pomegranate_files/gmm3_pomegranate_seaborn_scatterplot.png')
-# data_uri = open('gmm3_pomegranate_files/gmm3_pomegranate_seaborn_scatterplot.png',
-#                 'rb').read().encode('base64').replace('\n', '')
-# img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
-# Html_file.write(img_tag)
+# linked brushing probas:
+data_probs = data_thr.copy()
+for j in range(probs.shape[1]):
+    data_probs['probs'+str(j)] = pd.Series(probs[:, j])
+
+linkbru = plot_probs_bokeh_linked_brushing(data_probs,
+                                           x_name='rateCA', y_name='rate',
+                                           covs=covs_xy, means=means_xy)
+html = file_html(linkbru, CDN, "pomegranate gmm with 3 components")
+Html_file.write(html)
+Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+
+
+##################
+fig = scatter_matrix_seaborn(data_thr)
+plt.title('seaborn_scatterplot')
+fig.fig.savefig(
+    'gmm3_pomegranate_files/gmm3_pomegranate_seaborn_scatterplot.png')
+data_uri = open(
+    'gmm3_pomegranate_files/gmm3_pomegranate_seaborn_scatterplot.png',
+    'rb').read().encode('base64').replace('\n', '')
+img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+Html_file.write(img_tag)
 Html_file.close()
