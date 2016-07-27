@@ -1,6 +1,8 @@
 # import pdb
 import numpy as np
 
+from sklearn.utils import shuffle
+
 import datashader as ds
 import datashader.transfer_functions as tf
 from datashader.bokeh_ext import InteractiveImage
@@ -20,6 +22,7 @@ from matplotlib.colors import ListedColormap
 
 from collections import OrderedDict
 
+from sklearn.preprocessing import StandardScaler
 
 def mask(data, exception_cols=[], p=99.9):
     mask = np.ones(data.shape[0]).astype(bool)
@@ -168,7 +171,8 @@ def bokeh_datashader_plot(data, covs=None, means=None, covs_indices=None,
 
 def scatter_matrix(data, covs=None, means=None, covs_indices=None,
                    pred_name='preds',
-                   spread=False, color_key=None):
+                   spread=False, color_key=None,
+                   plot_width=150, plot_height=150, datashader=True):
     # if the covariance matrix has lower dim than data (because the estimator
     # has not been trained with all features), the missing features are assumed
     # to be the last of data.columns excepting if covs_indices is not None.
@@ -182,36 +186,70 @@ def scatter_matrix(data, covs=None, means=None, covs_indices=None,
     for y, y_name in enumerate(columns):
         for x, x_name in enumerate(columns):
             if y_name == x_name:
-                fig = bokeh_datashader_plot(data, x_name=x_name, y_name=y_name,
-                                            pred_name=pred_name, title=x_name,
-                                            spread=spread, color_key=color_key)
-
+                if datashader:
+                    fig = bokeh_datashader_plot(data, x_name=x_name,
+                                                y_name=y_name,
+                                                pred_name=pred_name,
+                                                title=x_name,
+                                                spread=spread,
+                                                color_key=color_key,
+                                                plot_width=plot_width,
+                                                plot_height=plot_height)
+                else:
+                    fig = bokeh_plot_cov(data, x_name=x_name, y_name=y_name,
+                                         pred_name=pred_name, title=x_name,
+                                         color_key=color_key,
+                                         plot_width=plot_width,
+                                         plot_height=plot_height)
             else:
-                if covs is not None:
-                    plot_ellipse = ((max(x, y) < covs.shape[1])
-                                    if covs_indices is None
-                                    else (x in covs_indices) * (y in covs_indices))
-                    if plot_ellipse:
-                        covs_xy = [covs[j][[x, y]][:, [x, y]]
-                                   for j in range(covs.shape[0])]
-                        means_xy = [means[j][[x, y]]
-                                    for j in range(covs.shape[0])]
+                if covs is None:
+                    plot_ellipse = False
+                else:
+                    plot_ellipse = ((max(x, y) < covs.shape[1]) if covs_indices is None else (x_name in covs_indices) * (y_name in covs_indices))
+                if plot_ellipse:
+                    covs_xy = [covs[j][[x, y]][:, [x, y]]
+                               for j in range(covs.shape[0])]
+                    means_xy = [means[j][[x, y]]
+                                for j in range(covs.shape[0])]
 
+                    if datashader:
                         fig = bokeh_datashader_plot(data, covs_xy, means_xy,
                                                     covs_indices,
                                                     x_name=x_name,
                                                     y_name=y_name,
                                                     pred_name=pred_name,
                                                     spread=spread,
-                                                    color_key=color_key)
-                else:
-                    fig = bokeh_datashader_plot(data,
-                                                x_name=x_name,
-                                                y_name=y_name,
-                                                pred_name=pred_name,
-                                                spread=spread,
-                                                color_key=color_key)
+                                                    color_key=color_key,
+                                                    plot_width=plot_width,
+                                                    plot_height=plot_height)
+                    else:
+                        fig = bokeh_plot_cov(data, covs_xy, means_xy,
+                                             covs_indices,
+                                             x_name=x_name,
+                                             y_name=y_name,
+                                             pred_name=pred_name,
+                                             color_key=color_key,
+                                             plot_width=plot_width,
+                                             plot_height=plot_height)
 
+                else:
+                    if datashader:
+                        fig = bokeh_datashader_plot(data,
+                                                    x_name=x_name,
+                                                    y_name=y_name,
+                                                    pred_name=pred_name,
+                                                    spread=spread,
+                                                    color_key=color_key,
+                                                    plot_width=plot_width,
+                                                    plot_height=plot_height)
+                    else:
+                        fig = bokeh_plot_cov(data,
+                                             x_name=x_name,
+                                             y_name=y_name,
+                                             pred_name=pred_name,
+                                             color_key=color_key,
+                                             plot_width=plot_width,
+                                             plot_height=plot_height)
             figs += [fig]
     f = zip(*[iter(figs)]*len(columns))
     f = map(list, f)
@@ -275,6 +313,7 @@ def plot_probs_bokeh_linked_brushing(data,
                                      prob_names=['probs0', 'probs1', 'probs2'],
                                      pred_name='preds',  # time_name='MJD',
                                      preds=True,
+                                     percent10=True,
                                      x_name='rateCA', y_name='rate',
                                      covs=None, means=None,
                                      spread=False, color_key=None,
@@ -308,9 +347,22 @@ def plot_probs_bokeh_linked_brushing(data,
                  title=title,
                  tools=TOOLS)
 
-    source = ColumnDataSource(data)
+    if percent10:
+        X = np.concatenate([np.array(
+            data[name]).reshape(-1, 1) for name in list(data.columns)],
+                           axis=1)
+        #X = shuffle(X)
+        a = X.shape[0] / 10
+        data10 = pd.DataFrame(X[:a])
+        data10.columns = data.columns
+        source = ColumnDataSource(data10)
+        colors = [color_key[int(x)] for x in data10[pred_name]]
+        n_samples = data10.shape[0]
+    else:
+        source = ColumnDataSource(data)
+        colors = [color_key[x] for x in data[pred_name]]
+        n_samples = data.shape[0]
 
-    colors = [color_key[x] for x in data[pred_name]]
     fig.circle(x_name, y_name, source=source, color=colors)  # , radius=radius1
 
     if covs is not None:
@@ -331,7 +383,6 @@ def plot_probs_bokeh_linked_brushing(data,
 
                 fig.line(a, b, color=color_key[n_comp])
 
-    n_samples = data.shape[0]
     print n_samples
     fig2 = Figure(x_range=(0, n_samples),
                   y_range=(-0.01, 1.01),
@@ -396,4 +447,171 @@ def plot_probs_datashader(probs, title=None, color_key=None):
                    y=[ymin],
                    dw=[xmax-xmin],
                    dh=[ymax-ymin])
+    return fig
+
+
+# ###########  iirc data:
+
+
+def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
+    # ## flux attribute:
+
+    # we need to change the byte order for fits -> dataframe:
+    data_fr = pd.DataFrame(data['flux'].byteswap().newbyteorder())
+    # convert attributes to str:
+    flux_attr = [str(j) for j in data_fr.columns]
+    data_fr.columns = flux_attr
+
+    # ## average energy attribute:
+    en = (data['en_lo'].byteswap().newbyteorder()
+          + data['en_hi'].byteswap().newbyteorder()) / 2.
+    data_fr_en = pd.DataFrame(en)
+    # convert attributes to str:
+    en_attr = ['en_' + str(j) for j in data_fr_en.columns]
+    data_fr_en.columns = en_attr
+
+    # ## errors attribute:
+    err = data['flux_err'].byteswap().newbyteorder()
+    data_fr_err = pd.DataFrame(err)
+    # convert attributes to str:
+    err_attr = ['err_' + str(j) for j in data_fr_en.columns]
+    data_fr_err.columns = err_attr
+
+    # ## other attributes:
+    names = [data.columns[j].name for j in range(len(data.columns))]
+    # rm str attribute:
+    names.remove('block')
+    names.remove('orbitalphase')
+    names.remove('smoothorbitalphase')
+    # rm useless attributes or already in:
+    names.remove('en_lo')  # already in
+    names.remove('en_hi')  # already in
+    names.remove('flux')  # already in
+    names.remove('flux_err')  # already in
+    # also remove error terms, tstart and tstop:
+    # names.remove('rms1')
+    # names.remove('rms2')
+    # names.remove('rms3')
+    # names.remove('rms4')
+    names.remove('tstart')
+    names.remove('tstop')
+
+    data_fr2 = pd.DataFrame({name: data[name].byteswap().newbyteorder()
+                             for name in names})
+
+    data_fr = pd.concat([data_fr, data_fr2, data_fr_en, data_fr_err], axis=1)
+
+    # rm the rows with nan values:
+    data_fr = data_fr.dropna()
+
+    if thresholded:
+        # rm too large values except for the orbits, 'gamma' and energy attr:
+        unthresholded_attr = ['orbitalphase', 'smoothorbitalphase',
+                              'gamma'] + en_attr + err_attr
+        data_thr = mask(data_fr, unthresholded_attr)
+
+    # define X (without gamma and nrj attribute):
+    col_X = list(data_thr.columns)
+    col_X.remove('gamma')
+    for i in range(len(en_attr)):
+        col_X.remove(en_attr[i])
+    for i in range(len(err_attr)):
+        col_X.remove(err_attr[i])
+
+    X = np.concatenate([np.array(
+        data_thr[name]).reshape(-1, 1) for name in col_X], axis=1)
+    X_flux = np.concatenate([np.array(
+        data_thr[name]).reshape(-1, 1) for name in flux_attr], axis=1)
+
+    if only_flux:
+        X = X_flux
+
+    if scale_data:
+        scaled_attr = list(data_thr.columns)
+        scaled_attr.remove('gamma')
+        data_thr[scaled_attr] = StandardScaler().fit_transform(
+            data_thr[scaled_attr])
+
+    # restrict data_fr_en and data_fr_err to mask and nonnan values:
+    data_fr_en = data_thr[data_fr_en.columns]
+    data_fr_err = data_thr[data_fr_err.columns]
+
+    a = np.array(data_thr['gamma'])
+    y = (a > 2.5).astype('int') + (a > 2).astype('int')
+    data_thr['y'] = y
+
+    return X_flux, X, data_thr, data_fr_en, data_fr_err
+
+
+def bokeh_plot_cov(data, covs=None, means=None, covs_indices=None,
+                   x_name='rateCA',
+                   y_name='rate',
+                   pred_name='preds', title=None,
+                   plot_width=150, plot_height=150,
+                   color_key=None):
+
+    if color_key is None:
+        color_key = ["red", "blue", "yellow", "grey", "black", "purple",
+                     "pink", "brown", "green", "orange"]
+
+    TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,lasso_select"
+
+    xmin_p = np.percentile(data[x_name], 0.1)
+    xmax_p = np.percentile(data[x_name], 99)
+    ymin_p = np.percentile(data[y_name], 0.1)
+    ymax_p = np.percentile(data[y_name], 99)
+
+    xmin = np.percentile(data[x_name], 0.01)
+    xmax = np.percentile(data[x_name], 99.9)
+    ymin = np.percentile(data[y_name], 0.01)
+    ymax = np.percentile(data[y_name], 99.9)
+
+    # xmin = data[x_name].min()
+    # xmax = data[x_name].max()
+    # ymin = data[y_name].min()
+    # ymax = data[y_name].max()
+
+    fig = Figure(x_range=(xmin_p, xmax_p),
+                 y_range=(ymin_p, ymax_p),
+                 plot_width=plot_width,
+                 plot_height=plot_height,
+                 title=title,
+                 tools=TOOLS)
+
+    source = ColumnDataSource(data)
+    colors = [color_key[x] for x in data[pred_name]]
+
+    fig.circle(x_name, y_name, source=source, color=colors)  # , radius=radius1
+
+    if covs is not None:
+            # pdb.set_trace()
+            for n_comp in range(len(covs)):
+                cov = covs[n_comp]
+                mean = means[n_comp]
+                v, w = np.linalg.eigh(cov)
+                e0 = w[0] / np.linalg.norm(w[0])
+                e1 = w[1] / np.linalg.norm(w[1])
+                t = np.linspace(0, 2 * np.pi, 10000)
+                # 4.605 corresponds to 90% quantile:
+                a = (mean[0]
+                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
+                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
+                b = (mean[1]
+                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
+                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
+                # ellipse = pd.DataFrame(np.c_[a, b], columns=['a', 'b'])
+                # agg_ell = cvs.line(ellipse, 'a', 'b', agg=ds.any())
+                # img_ell = tf.interpolate(agg_ell, cmap=[color_key[n_comp]])
+                # img = tf.stack(img, img_ell)
+
+                fig.line(a, b, color=color_key[n_comp])
+
+#    fig.background_fill_color = 'black'
+#    fig.toolbar_location = None
+    fig.axis.visible = True
+    fig.grid.grid_line_alpha = 0
+    fig.min_border_left = 0
+    fig.min_border_right = 0
+    fig.min_border_top = 0
+    fig.min_border_bottom = 0
     return fig
