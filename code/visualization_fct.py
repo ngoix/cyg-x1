@@ -1,4 +1,4 @@
-# import pdb
+import pdb
 import numpy as np
 
 from sklearn.utils import shuffle
@@ -23,6 +23,7 @@ from matplotlib.colors import ListedColormap
 from collections import OrderedDict
 
 from sklearn.preprocessing import StandardScaler
+
 
 def mask(data, exception_cols=[], p=99.9):
     mask = np.ones(data.shape[0]).astype(bool)
@@ -143,6 +144,7 @@ def bokeh_datashader_plot(data, covs=None, means=None, covs_indices=None,
                 v, w = np.linalg.eigh(cov)
                 e0 = w[0] / np.linalg.norm(w[0])
                 e1 = w[1] / np.linalg.norm(w[1])
+                #pdb.set_trace()
                 t = np.linspace(0, 2 * np.pi, 10000)
                 # 4.605 corresponds to 90% quantile:
                 a = (mean[0]
@@ -461,6 +463,7 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
     # convert attributes to str:
     flux_attr = [str(j) for j in data_fr.columns]
     data_fr.columns = flux_attr
+    #pdb.set_trace()
 
     # ## average energy attribute:
     en = (data['en_lo'].byteswap().newbyteorder()
@@ -508,7 +511,7 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
         # rm too large values except for the orbits, 'gamma' and energy attr:
         unthresholded_attr = ['orbitalphase', 'smoothorbitalphase',
                               'gamma'] + en_attr + err_attr
-        data_thr = mask(data_fr, unthresholded_attr)
+        data_thr = mask(data_fr, unthresholded_attr, p=95)
 
     # define X (without gamma and nrj attribute):
     col_X = list(data_thr.columns)
@@ -518,6 +521,12 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
     for i in range(len(err_attr)):
         col_X.remove(err_attr[i])
 
+    if scale_data:
+        scaled_attr = list(data_thr.columns)
+        scaled_attr.remove('gamma')
+        data_thr[scaled_attr] = StandardScaler().fit_transform(
+            data_thr[scaled_attr])
+
     X = np.concatenate([np.array(
         data_thr[name]).reshape(-1, 1) for name in col_X], axis=1)
     X_flux = np.concatenate([np.array(
@@ -525,12 +534,6 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
 
     if only_flux:
         X = X_flux
-
-    if scale_data:
-        scaled_attr = list(data_thr.columns)
-        scaled_attr.remove('gamma')
-        data_thr[scaled_attr] = StandardScaler().fit_transform(
-            data_thr[scaled_attr])
 
     # restrict data_fr_en and data_fr_err to mask and nonnan values:
     data_fr_en = data_thr[data_fr_en.columns]
