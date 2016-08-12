@@ -1,4 +1,7 @@
 from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import KMeans
+import itertools
+
 from visualization_fct import *
 # from bokeh.plotting import output_file, show, save
 # ACHTUNG!!! log transform of rateCA or without orbit may be activated
@@ -12,8 +15,6 @@ from pomegranate import State, Distribution
 
 import matplotlib.pyplot as plt  # , mpld3
 
-without_CA = False
-
 data = pd.read_csv("asm_data_for_ml.txt", sep='\t')
 del data['MJD']
 del data['error']
@@ -25,10 +26,15 @@ data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
 
 
 np.random.seed(0)
+kmeans = True
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
           data_thr.rateC, data_thr.rateCA]
-Html_file = open("hmm3_pomegranate_files/hmm4prior_pomegranate.html", "w")
+
+if kmeans:
+    Html_file = open("hmm_pomegranate_files/hmm4kmeans_pomegranate.html", "w")
+else:
+    Html_file = open("hmm_pomegranate_files/hmm4prior_pomegranate.html", "w")
 
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
@@ -40,11 +46,21 @@ X = scaler.fit_transform(X)
 
 # TODO kmeans + 4-5 components!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-X_1 = X[2000:4000]
-X_2 = X[400:800]
-X_3 = X[7000:8000]
+if kmeans:
+    km = KMeans(n_clusters=4)
+    y = km.fit_predict(X)
+    X_1 = X[y == 0]
+    X_11 = X[y == 1]
+    X_2 = X[y == 2]
+    X_3 = X[y == 3]
+
+else:
+    X_1 = X[2000:4000]
+    X_11 = X[2000:3000]
+    X_2 = X[400:800]
+    X_3 = X[7000:8000]
 a = MultivariateGaussianDistribution.from_samples(X_1)
-aa = MultivariateGaussianDistribution.from_samples(X_1)
+aa = MultivariateGaussianDistribution.from_samples(X_11)
 b = MultivariateGaussianDistribution.from_samples(X_2)
 c = MultivariateGaussianDistribution.from_samples(X_3)
 s1 = State(a, name="M1")
@@ -59,21 +75,26 @@ hmm.add_transition(hmm.start, s3, 0.25)
 hmm.add_transition(hmm.start, s11, 0.25)
 hmm.add_transition(hmm.start, s2, 0.25)
 
-hmm.add_transition(s1, s1, 0.9)
-hmm.add_transition(s1, s11, 0.05)
-hmm.add_transition(s1, s2, 0.05)
+hmm.add_transition(s1, s1, 0.91)
+hmm.add_transition(s1, s11, 0.03)
+hmm.add_transition(s1, s2, 0.03)
+hmm.add_transition(s1, s3, 0.03)
 
-hmm.add_transition(s11, s11, 0.9)
-hmm.add_transition(s11, s1, 0.05)
-hmm.add_transition(s11, s2, 0.05)
+hmm.add_transition(s11, s11, 0.91)
+hmm.add_transition(s11, s1, 0.03)
+hmm.add_transition(s11, s2, 0.03)
+hmm.add_transition(s11, s3, 0.03)
 
-hmm.add_transition(s2, s1, 0.025)
-hmm.add_transition(s2, s11, 0.025)
-hmm.add_transition(s2, s3, 0.05)
-hmm.add_transition(s2, s2, 0.9)
+hmm.add_transition(s2, s1, 0.03)
+hmm.add_transition(s2, s11, 0.03)
+hmm.add_transition(s2, s3, 0.03)
+hmm.add_transition(s2, s2, 0.91)
 
-hmm.add_transition(s3, s3, 0.9)
-hmm.add_transition(s3, s2, 0.1)
+hmm.add_transition(s3, s3, 0.91)
+hmm.add_transition(s3, s1, 0.03)
+hmm.add_transition(s3, s11, 0.03)
+hmm.add_transition(s3, s2, 0.03)
+
 hmm.bake()
 hmm.fit(X)  # , weights=w) hmm does not support weights in pomegranate
 preds = hmm.predict(X)
@@ -117,19 +138,15 @@ means = np.array([scaler.inverse_transform(means[j].reshape(1, -1)).T
 
 
 # single plot rateCA vs rate with predicted classes and ellipses:
-if without_CA:
-    covs_xy = None
-    means_xy = None
-else:
-    x = 5
-    y = 1
-    covs_xy = [covs[j][[x, y]][:, [x, y]] for j in range(len(covs))]
-    means_xy = [means[j][[x, y]] for j in range(len(covs))]
+x = 5
+y = 1
+covs_xy = [covs[j][[x, y]][:, [x, y]] for j in range(len(covs))]
+means_xy = [means[j][[x, y]] for j in range(len(covs))]
 
-    # # #uncommment if log
-    # for j in range(len(covs)):
-    #     covs_xy[j][0] = np.exp(covs_xy[j][0]) - 1
-    #     means_xy[j][0] = np.exp(means_xy[j][0]) - 1
+# # #uncommment if log
+# for j in range(len(covs)):
+#     covs_xy[j][0] = np.exp(covs_xy[j][0]) - 1
+#     means_xy[j][0] = np.exp(means_xy[j][0]) - 1
 
 single_plot = bokeh_datashader_plot(data_thr, covs=covs_xy, means=means_xy,
                                     x_name='rateCA',
@@ -140,9 +157,22 @@ single_plot = bokeh_datashader_plot(data_thr, covs=covs_xy, means=means_xy,
 html = file_html(single_plot, CDN, "pomegranate hmm with 3 components")
 Html_file.write('<br><br><br><br><br>')
 Html_file.write(html)
-Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
-Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
-Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+
+
+T = np.exp(hmm.dense_transition_matrix())[:4, :4]
+plt.imshow(T, interpolation='nearest', cmap=plt.cm.Blues)
+plt.colorbar()
+for i, j in itertools.product(range(T.shape[0]), range(T.shape[1])):
+        plt.text(j, i, int(T[i, j]*100),
+                 horizontalalignment="center",
+                 color="white" if T[i, j] > 0.5 else "black")
+plt.title('log_likelihood:%0.3f' % hmm.log_probability(X))
+plt.savefig('hmm_pomegranate_files/hmm4_pomegranate_transition.png')
+data_uri = open(
+    'hmm_pomegranate_files/hmm4_pomegranate_transition.png',
+    'rb').read().encode('base64').replace('\n', '')
+img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+Html_file.write(img_tag)
 
 
 # # histogram rateCA:
@@ -168,16 +198,30 @@ Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 # linked brushing probas:
 data_probs = data_thr.copy()
+prob_names = []
 for j in range(probs.shape[1]):
+    prob_names += ['probs'+str(j)]
     data_probs['probs'+str(j)] = pd.Series(probs[:, j])
 
-linkbru = plot_probs_bokeh_linked_brushing(data_probs,
+linkbru = plot_probs_bokeh_linked_brushing(data_probs, prob_names=prob_names,
+                                           color_key=color_key,
                                            x_name='rateCA', y_name='rate',
                                            covs=covs_xy, means=means_xy)
 html = file_html(linkbru, CDN, "pomegranate hmm with 3 components")
+Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write(html)
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+
+
+# interactive transition probability :
+
+p = interactive_transition_probability(data_thr,
+                                       color_key=color_key,
+                                       x_name='rateCA', y_name='rate',
+                                       covs=covs_xy, means=means_xy)
+html = file_html(p, CDN, "pomegranate hmm with 3 components")
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+Html_file.write(html)
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 Html_file.close()

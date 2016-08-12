@@ -19,6 +19,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 from matplotlib.colors import ListedColormap
+import matplotlib.animation as animation
 
 from collections import OrderedDict
 
@@ -127,7 +128,7 @@ def bokeh_datashader_plot(data, covs=None, means=None, covs_indices=None,
                  y_range=(ymin_p, ymax_p),
                  plot_width=plot_width,
                  plot_height=plot_height,
-                 title=title,
+                 title="order: red blue yellow grey black purple pink brown green orange",
                  tools=TOOLS)
 
     fig.image_rgba(image=[img.data],
@@ -329,8 +330,8 @@ def plot_probs_bokeh_linked_brushing(data,
     TOOLS = "wheel_zoom,box_zoom,reset,box_select,pan"  # ,lasso_select,save"
 
     if color_key is None:
-        color_key = ["red", "blue", "grey", "yellow", "black", "purple",
-                     "pink", "brown", "green", "orange"]  # Spectral9
+        color_key = ["red", "blue", "yellow", "grey", "black", "purple",
+                     "pink", "brown", "green", "orange"]
 
     xmin_p = np.percentile(data[x_name], 0.1)
     xmax_p = np.percentile(data[x_name], 99)
@@ -399,6 +400,42 @@ def plot_probs_bokeh_linked_brushing(data,
         #           color=color_key[n])
     p = gridplot([[fig], [fig2]])
     return p
+
+
+# def single_plot_animate(XX, preds, covs=None, means=None,
+#                         title=None, color_key=None):
+
+#     fig, ax = plt.subplots()
+
+#     line, = ax.plot(XX[:, 0], XX[:, 1], '.')
+
+#     if covs is not None:
+#         for n_comp in range(len(covs)):
+#             cov = covs[n_comp]
+#             mean = means[n_comp]
+#             v, w = np.linalg.eigh(cov)
+#             e0 = w[0] / np.linalg.norm(w[0])
+#             e1 = w[1] / np.linalg.norm(w[1])
+#             t = np.linspace(0, 2 * np.pi, 10000)
+#             # 4.605 corresponds to 90% quantile:
+#             a = (mean[0]
+#                  + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
+#                  + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
+#             b = (mean[1]
+#                  + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
+#                  + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
+
+#             ax.plot(a, b, color=color_key[n_comp])
+
+#     def animate(i):
+#         line.set_xdata(XX[10*i:10*(i+1), 0])  # update the data
+#         line.set_ydata(XX[10*i:10*(i+1), 1])   # update the data
+#         line.set_color(color_key[preds[10 * i]])
+#         return line,
+
+#     animation.FuncAnimation(fig, animate, np.arange(1000, 9300),
+#                             interval=1, blit=True)
+#     return fig
 
 
 def plot_probs_datashader(probs, title=None, color_key=None):
@@ -618,3 +655,114 @@ def bokeh_plot_cov(data, covs=None, means=None, covs_indices=None,
     fig.min_border_top = 0
     fig.min_border_bottom = 0
     return fig
+
+
+def switch_states(T, i, j):
+    '''
+    Return a copy of the transition matrix T
+    where states i and j are switched
+    '''
+    S = np.copy(T)
+    Tr = S[i, :].copy()
+    S[i, :] = S[j, :]
+    S[j, :] = Tr
+
+    Tr = S[:, i].copy()
+    S[:, i] = S[:, j]
+    S[:, j] = Tr
+    return S
+
+
+def interactive_transition_probability(data,
+                                       prob_names=['probs0', 'probs1',
+                                                   'probs2'],
+                                       pred_name='preds',
+                                       preds=True,
+                                       percent10=True,
+                                       x_name='rateCA', y_name='rate',
+                                       covs=None, means=None,
+                                       spread=False, color_key=None,
+                                       plot_width=900, plot_height=300,
+                                       title=None):
+    '''
+    return a linked brushing interactive bokeh plot
+    '''
+    TOOLS = "wheel_zoom,box_zoom,reset,box_select,pan"  # ,lasso_select,save"
+
+    if color_key is None:
+        color_key = ["red", "blue", "yellow", "grey", "black", "purple",
+                     "pink", "brown", "green", "orange"]
+
+    xmin_p = np.percentile(data[x_name], 0.1)
+    xmax_p = np.percentile(data[x_name], 99)
+    ymin_p = np.percentile(data[y_name], 0.1)
+    ymax_p = np.percentile(data[y_name], 99)
+
+    fig = Figure(x_range=(xmin_p, xmax_p),
+                 y_range=(ymin_p, ymax_p),
+                 plot_width=plot_width,
+                 plot_height=plot_height,
+                 title=title,
+                 tools=TOOLS)
+
+    data_extended = data.copy(deep=True)
+    data_extended['x_next'] = np.r_[data[x_name][1:],
+                                    data[x_name][0]]
+    data_extended['y_next'] = np.r_[data[y_name][1:],
+                                    data[y_name][0]]
+
+    if percent10:
+        X = np.concatenate([np.array(
+            data_extended[name]).reshape(-1, 1)
+                            for name in list(data_extended.columns)],
+                           axis=1)
+
+        a = X.shape[0] / 10
+        data_extended10 = pd.DataFrame(X[:a])
+        data_extended10.columns = data_extended.columns
+        source = ColumnDataSource(data_extended10)
+        colors = [color_key[int(x)] for x in data_extended10[pred_name]]
+        colors_next = [color_key[int(x)]
+                       for x in data_extended10[pred_name][1:]]
+        colors_next += color_key[int(data_extended10[pred_name][0])]
+        n_samples = data_extended10.shape[0]
+    else:
+        source = ColumnDataSource(data_extended)
+        colors = [color_key[x] for x in data_extended[pred_name]]
+        colors_next = [color_key[x] for x in data_extended[pred_name][1:]]
+        colors_next += color_key[(data_extended[pred_name][0])]
+        n_samples = data_extended.shape[0]
+
+    fig.circle(x_name, y_name, source=source, color=colors)
+
+    if covs is not None:
+            for n_comp in range(len(covs)):
+                cov = covs[n_comp]
+                mean = means[n_comp]
+                v, w = np.linalg.eigh(cov)
+                e0 = w[0] / np.linalg.norm(w[0])
+                e1 = w[1] / np.linalg.norm(w[1])
+                t = np.linspace(0, 2 * np.pi, 10000)
+                # 4.605 corresponds to 90% quantile:
+                a = (mean[0]
+                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
+                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
+                b = (mean[1]
+                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
+                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
+
+                fig.line(a, b, color=color_key[n_comp])
+
+    print n_samples
+    fig2 = Figure(x_range=(xmin_p, xmax_p),
+                  y_range=(ymin_p, ymax_p),
+                  plot_width=plot_width,
+                  plot_height=plot_height,
+                  title=title,
+                  tools=TOOLS)
+
+    fig2.circle('x_next', 'y_next', source=source,
+                fill_color='white', line_color='black')
+
+    p = gridplot([[fig], [fig2]])
+    return p

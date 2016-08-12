@@ -26,9 +26,10 @@ w = np.concatenate([np.array(data_thr[name]).reshape(-1, 1)
                     for name in ['error', 'errorA', 'errorB', 'errorC']],
                    axis=1)
 # XXX add the error for the ratio?
-w = np.concatenate([w,
-                    (data_thr['errorC'] / data_thr['rateA']).reshape(-1, 1)],
-                   axis=1)
+errorCA = np.sqrt((data_thr['errorC'] / data_thr['rateA']) ** 2
+                  + data_thr['errorA'] / data_thr['rateA'] ** 4
+                  * data_thr['rateC'] ** 2)
+w = np.concatenate([w, errorCA.reshape(-1, 1)], axis=1)
 
 del data_thr['error']
 del data_thr['errorA']
@@ -40,17 +41,18 @@ np.random.seed(0)
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
           data_thr.rateC, data_thr.rateCA]
-Html_file = open("gmm3_pomegranate_files/gmm5w_pomegranate.html", "w")
+Html_file = open("gmm_pomegranate_files/gmm3w_pomegranate.html",
+                 "w")
 
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
 # 1 corresponds to data_thr.rate and 4=5-1 to data_thr.rateC
 w = w / np.sqrt(scaler.var_[1:])
 
-w = np.exp(-np.exp(3 * w.mean(axis=1)))
+# w = np.exp(-np.exp(3 * w.mean(axis=1)))
+w = 1. / w.mean(axis=1) ** 2
 
-
-gmm = GeneralMixtureModel(MultivariateGaussianDistribution, n_components=5)
+gmm = GeneralMixtureModel(MultivariateGaussianDistribution, n_components=3)
 gmm.fit(X, weights=w)
 preds = gmm.predict(X)
 probs = gmm.predict_proba(X)
