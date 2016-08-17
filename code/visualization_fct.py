@@ -138,28 +138,36 @@ def bokeh_datashader_plot(data, covs=None, means=None, covs_indices=None,
                    dh=[ymax-ymin])
 
     if covs is not None:
-            # pdb.set_trace()
-            for n_comp in range(len(covs)):
-                cov = covs[n_comp]
-                mean = means[n_comp]
-                v, w = np.linalg.eigh(cov)
-                e0 = w[0] / np.linalg.norm(w[0])
-                e1 = w[1] / np.linalg.norm(w[1])
-                #pdb.set_trace()
-                t = np.linspace(0, 2 * np.pi, 10000)
-                # 4.605 corresponds to 90% quantile:
-                a = (mean[0]
-                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
-                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
-                b = (mean[1]
-                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
-                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
-                # ellipse = pd.DataFrame(np.c_[a, b], columns=['a', 'b'])
-                # agg_ell = cvs.line(ellipse, 'a', 'b', agg=ds.any())
-                # img_ell = tf.interpolate(agg_ell, cmap=[color_key[n_comp]])
-                # img = tf.stack(img, img_ell)
+        # pdb.set_trace()
+        for n_comp in range(len(covs)):
+            cov = covs[n_comp]
+            mean = means[n_comp]
+            v, w = np.linalg.eigh(cov)
+            e0 = w[0] / np.linalg.norm(w[0])
+            e1 = w[1] / np.linalg.norm(w[1])
+            #pdb.set_trace()
+            t = np.linspace(0, 2 * np.pi, 10000)
+            # 4.605 corresponds to 90% quantile:
+            a = (mean[0]
+                 + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
+                 + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
+            b = (mean[1]
+                 + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
+                 + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
+            # ellipse = pd.DataFrame(np.c_[a, b], columns=['a', 'b'])
+            # agg_ell = cvs.line(ellipse, 'a', 'b', agg=ds.any())
+            # img_ell = tf.interpolate(agg_ell, cmap=[color_key[n_comp]])
+            # img = tf.stack(img, img_ell)
 
-                fig.line(a, b, color=color_key[n_comp])
+            fig.line(a, b, color=color_key[n_comp])
+
+    # plot the manual decisions (lines):
+    t = np.linspace(0, 2, 1000)
+    y1 = np.max([20 * np.ones(t.shape[0]), 55 * (t - 0.28)], axis=0)
+    y2 = np.max([20 * np.ones(t.shape[0]), 350 * (t - 0.28)], axis=0)
+    fig.line(t, y1, color='black')
+    fig.line(t, y2, color='black')
+
 
 #    fig.background_fill_color = 'black'
 #    fig.toolbar_location = None
@@ -350,6 +358,8 @@ def plot_probs_bokeh_linked_brushing(data,
                  title=title,
                  tools=TOOLS)
 
+    data['probs_aver'] = np.max([data[name] for name in prob_names], axis=0)
+
     if percent10:
         X = np.concatenate([np.array(
             data[name]).reshape(-1, 1) for name in list(data.columns)],
@@ -360,31 +370,44 @@ def plot_probs_bokeh_linked_brushing(data,
         data10.columns = data.columns
         source = ColumnDataSource(data10)
         colors = [color_key[int(x)] for x in data10[pred_name]]
+        colors = np.array(colors)
         n_samples = data10.shape[0]
     else:
         source = ColumnDataSource(data)
         colors = [color_key[x] for x in data[pred_name]]
         n_samples = data.shape[0]
+    # for hmm10, fuse close clusters:
+    colors[(colors == 'red') + (colors == 'black')
+           + (colors == 'purple') + (colors == 'pink')] = 'red'
+    colors[(colors == 'yellow') + (colors == 'green')] = 'yellow'
+    # colors[(colors == 'grey') + (colors == 'brown')] = 'grey'
 
     fig.circle(x_name, y_name, source=source, color=colors)  # , radius=radius1
 
     if covs is not None:
-            for n_comp in range(len(covs)):
-                cov = covs[n_comp]
-                mean = means[n_comp]
-                v, w = np.linalg.eigh(cov)
-                e0 = w[0] / np.linalg.norm(w[0])
-                e1 = w[1] / np.linalg.norm(w[1])
-                t = np.linspace(0, 2 * np.pi, 10000)
-                # 4.605 corresponds to 90% quantile:
-                a = (mean[0]
-                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
-                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
-                b = (mean[1]
-                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
-                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
+        for n_comp in range(len(covs)):
+            cov = covs[n_comp]
+            mean = means[n_comp]
+            v, w = np.linalg.eigh(cov)
+            e0 = w[0] / np.linalg.norm(w[0])
+            e1 = w[1] / np.linalg.norm(w[1])
+            t = np.linspace(0, 2 * np.pi, 10000)
+            # 4.605 corresponds to 90% quantile:
+            a = (mean[0]
+                 + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
+                 + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
+            b = (mean[1]
+                 + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
+                 + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
 
-                fig.line(a, b, color=color_key[n_comp])
+            fig.line(a, b, color=color_key[n_comp])
+
+    # plot the manual decisions (lines):
+    t = np.linspace(0, 2, 1000)
+    y1 = np.max([20 * np.ones(t.shape[0]), 55 * (t - 0.28)], axis=0)
+    y2 = np.max([20 * np.ones(t.shape[0]), 350 * (t - 0.28)], axis=0)
+    fig.line(t, y1, color='black')
+    fig.line(t, y2, color='black')
 
     print n_samples
     fig2 = Figure(x_range=(0, n_samples),
@@ -393,9 +416,16 @@ def plot_probs_bokeh_linked_brushing(data,
                   plot_height=plot_height,
                   title=title,
                   tools=TOOLS)
-    for n, prob_name in enumerate(prob_names):
-        fig2.circle(range(n_samples), prob_name, source=source,
-                    color=color_key[n])
+
+    fig2.circle(range(n_samples), np.zeros(n_samples), source=source,
+                color=colors)  # , radius=3.)
+
+    # for n, prob_name in enumerate(prob_names):
+    #     fig2.circle(range(n_samples), prob_name, source=source,
+    #                 color=color_key[n])
+    fig2.line(range(n_samples), 'probs_aver', source=source)
+            #  color=colors, radius=1.)
+
         # fig2.line(range(n_samples), prob_name, source=source,
         #           color=color_key[n])
     p = gridplot([[fig], [fig2]])
@@ -500,7 +530,7 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
     # convert attributes to str:
     flux_attr = [str(j) for j in data_fr.columns]
     data_fr.columns = flux_attr
-    #pdb.set_trace()
+    # pdb.set_trace()
 
     # ## average energy attribute:
     en = (data['en_lo'].byteswap().newbyteorder()
@@ -528,13 +558,14 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
     names.remove('en_hi')  # already in
     names.remove('flux')  # already in
     names.remove('flux_err')  # already in
+
     # also remove error terms, tstart and tstop:
     # names.remove('rms1')
     # names.remove('rms2')
     # names.remove('rms3')
     # names.remove('rms4')
-    names.remove('tstart')
-    names.remove('tstop')
+    # names.remove('tstart')
+    # names.remove('tstop')
 
     data_fr2 = pd.DataFrame({name: data[name].byteswap().newbyteorder()
                              for name in names})
@@ -547,12 +578,14 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
     if thresholded:
         # rm too large values except for the orbits, 'gamma' and energy attr:
         unthresholded_attr = ['orbitalphase', 'smoothorbitalphase',
-                              'gamma'] + en_attr + err_attr
+                              'gamma', 'tstart', 'tstop'] + en_attr + err_attr
         data_thr = mask(data_fr, unthresholded_attr, p=95)
 
     # define X (without gamma and nrj attribute):
     col_X = list(data_thr.columns)
     col_X.remove('gamma')
+    col_X.remove('tstart')
+    col_X.remove('tstop')
     for i in range(len(en_attr)):
         col_X.remove(en_attr[i])
     for i in range(len(err_attr)):
@@ -561,6 +594,8 @@ def get_iirc_data(data, scale_data=True, only_flux=False, thresholded=True):
     if scale_data:
         scaled_attr = list(data_thr.columns)
         scaled_attr.remove('gamma')
+        scaled_attr.remove('tstart')
+        scaled_attr.remove('tstop')
         data_thr[scaled_attr] = StandardScaler().fit_transform(
             data_thr[scaled_attr])
 
@@ -624,27 +659,35 @@ def bokeh_plot_cov(data, covs=None, means=None, covs_indices=None,
     fig.circle(x_name, y_name, source=source, color=colors)  # , radius=radius1
 
     if covs is not None:
-            # pdb.set_trace()
-            for n_comp in range(len(covs)):
-                cov = covs[n_comp]
-                mean = means[n_comp]
-                v, w = np.linalg.eigh(cov)
-                e0 = w[0] / np.linalg.norm(w[0])
-                e1 = w[1] / np.linalg.norm(w[1])
-                t = np.linspace(0, 2 * np.pi, 10000)
-                # 4.605 corresponds to 90% quantile:
-                a = (mean[0]
-                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
-                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
-                b = (mean[1]
-                     + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
-                     + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
-                # ellipse = pd.DataFrame(np.c_[a, b], columns=['a', 'b'])
-                # agg_ell = cvs.line(ellipse, 'a', 'b', agg=ds.any())
-                # img_ell = tf.interpolate(agg_ell, cmap=[color_key[n_comp]])
-                # img = tf.stack(img, img_ell)
+        # pdb.set_trace()
+        for n_comp in range(len(covs)):
+            cov = covs[n_comp]
+            mean = means[n_comp]
+            v, w = np.linalg.eigh(cov)
+            e0 = w[0] / np.linalg.norm(w[0])
+            e1 = w[1] / np.linalg.norm(w[1])
+            t = np.linspace(0, 2 * np.pi, 10000)
+            # 4.605 corresponds to 90% quantile:
+            a = (mean[0]
+                 + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[0]
+                 + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[0])
+            b = (mean[1]
+                 + np.sqrt(4.605 * v[0]) * np.cos(t) * e0[1]
+                 + np.sqrt(4.605 * v[1]) * np.sin(t) * e1[1])
+            # ellipse = pd.DataFrame(np.c_[a, b], columns=['a', 'b'])
+            # agg_ell = cvs.line(ellipse, 'a', 'b', agg=ds.any())
+            # img_ell = tf.interpolate(agg_ell, cmap=[color_key[n_comp]])
+            # img = tf.stack(img, img_ell)
 
-                fig.line(a, b, color=color_key[n_comp])
+            fig.line(a, b, color=color_key[n_comp])
+
+    # plot the manual decisions (lines):
+    t = np.linspace(0, 2, 1000)
+    y1 = np.max([20 * np.ones(t.shape[0]), 55 * (t - 0.28)], axis=0)
+    y2 = np.max([20 * np.ones(t.shape[0]), 350 * (t - 0.28)], axis=0)
+    fig.line(t, y1, color='black')
+    fig.line(t, y2, color='black')
+
 
 #    fig.background_fill_color = 'black'
 #    fig.toolbar_location = None
@@ -710,6 +753,19 @@ def interactive_transition_probability(data,
                                     data[x_name][0]]
     data_extended['y_next'] = np.r_[data[y_name][1:],
                                     data[y_name][0]]
+    data_extended['x_next10'] = np.r_[data[x_name][10:],
+                                      data[x_name][:10]]
+    data_extended['y_next10'] = np.r_[data[y_name][10:],
+                                      data[y_name][:10]]
+    data_extended['x_next100'] = np.r_[data[x_name][100:],
+                                       data[x_name][:100]]
+    data_extended['y_next100'] = np.r_[data[y_name][100:],
+                                       data[y_name][:100]]
+
+    data_extended['x_prev50'] = np.r_[data[x_name][-50:],
+                                      data[x_name][:-50]]
+    data_extended['y_prev50'] = np.r_[data[y_name][-50:],
+                                      data[y_name][:-50]]
 
     if percent10:
         X = np.concatenate([np.array(
@@ -753,6 +809,13 @@ def interactive_transition_probability(data,
 
                 fig.line(a, b, color=color_key[n_comp])
 
+    # plot the manual decisions (lines):
+    t = np.linspace(0, 2, 1000)
+    y1 = np.max([20 * np.ones(t.shape[0]), 55 * (t - 0.28)], axis=0)
+    y2 = np.max([20 * np.ones(t.shape[0]), 350 * (t - 0.28)], axis=0)
+    fig.line(t, y1, color='black')
+    fig.line(t, y2, color='black')
+
     print n_samples
     fig2 = Figure(x_range=(xmin_p, xmax_p),
                   y_range=(ymin_p, ymax_p),
@@ -762,7 +825,34 @@ def interactive_transition_probability(data,
                   tools=TOOLS)
 
     fig2.circle('x_next', 'y_next', source=source,
-                fill_color='white', line_color='black')
+                fill_color='white', line_color='black', radius=0.005)
 
-    p = gridplot([[fig], [fig2]])
+    fig3 = Figure(x_range=(xmin_p, xmax_p),
+                  y_range=(ymin_p, ymax_p),
+                  plot_width=plot_width,
+                  plot_height=plot_height,
+                  title=title,
+                  tools=TOOLS)
+    fig3.circle('x_next10', 'y_next10', source=source,
+                fill_color='white', line_color='black', radius=0.005)
+
+    fig4 = Figure(x_range=(xmin_p, xmax_p),
+                  y_range=(ymin_p, ymax_p),
+                  plot_width=plot_width,
+                  plot_height=plot_height,
+                  title=title,
+                  tools=TOOLS)
+    fig4.circle('x_next100', 'y_next100', source=source,
+                fill_color='white', line_color='black', radius=0.005)
+
+    fig5 = Figure(x_range=(xmin_p, xmax_p),
+                  y_range=(ymin_p, ymax_p),
+                  plot_width=plot_width,
+                  plot_height=plot_height,
+                  title=title,
+                  tools=TOOLS)
+    fig5.circle('x_prev50', 'y_prev50', source=source,
+                fill_color='white', line_color='black', radius=0.005)
+
+    p = gridplot([[fig5], [fig], [fig2], [fig3], [fig4]])
     return p

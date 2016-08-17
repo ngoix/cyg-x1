@@ -26,7 +26,7 @@ data['rateCA'] = data.rateC / data.rateA
 data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
 
 
-np.random.seed(0)
+np.random.seed(1)
 kmeans = True
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
@@ -47,7 +47,7 @@ X = scaler.fit_transform(X)
 # TODO kmeans + 4-5 components!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 if kmeans:
-    km = KMeans(n_clusters=9)
+    km = KMeans(n_clusters=5)
     y = km.fit_predict(X)
     X_1 = X[y == 0]
     X_11 = X[y == 1]
@@ -56,6 +56,10 @@ if kmeans:
     X_22 = X[y == 3]
 
     X_3 = X[y == 4]
+
+    # print 'km.cluster_centers_', km.cluster_centers_
+    # plt.scatter(X[:, 5], X[:, 1], c=y)
+    # plt.show()
 
 else:
     X_1 = X[2000:3000]

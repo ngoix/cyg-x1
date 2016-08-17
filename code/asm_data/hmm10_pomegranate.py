@@ -24,7 +24,7 @@ data['rateCA'] = data.rateC / data.rateA
 data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
 
 
-np.random.seed(1)
+np.random.seed(0)
 kmeans = True
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
@@ -287,7 +287,13 @@ S = switch_states(T, 0, 1)
 S = switch_states(S, 3, 5)
 S = switch_states(S, 4, 5)
 S = switch_states(S, 5, 6)
-plt.matshow(S)
+plt.figure()
+plt.imshow(T, interpolation='nearest', cmap=plt.cm.Blues)
+plt.colorbar()
+for i, j in itertools.product(range(T.shape[0]), range(T.shape[1])):
+        plt.text(j, i, int(T[i, j]*100),
+                 horizontalalignment="center",
+                 color="white" if T[i, j] > 0.5 else "black")
 plt.title('log_likelihood:%0.3f' % hmm.log_probability(X))
 plt.savefig('hmm_pomegranate_files/hmm10_pomegranate_transition.png')
 data_uri = open(
@@ -326,7 +332,7 @@ for j in range(probs.shape[1]):
     data_probs['probs'+str(j)] = pd.Series(probs[:, j])
 
 linkbru = plot_probs_bokeh_linked_brushing(data_probs, prob_names=prob_names,
-                                           color_key=color_key, percent10=False,
+                                           color_key=color_key,
                                            x_name='rateCA', y_name='rate',
                                            covs=covs_xy, means=means_xy)
 html = file_html(linkbru, CDN, "pomegranate hmm with 3 components")
