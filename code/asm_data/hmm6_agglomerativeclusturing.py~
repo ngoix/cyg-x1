@@ -1,0 +1,48 @@
+from sklearn.preprocessing import StandardScaler
+from sklearn.cluster import AgglomerativeClustering
+from visualization_fct import *
+# from bokeh.plotting import output_file, show, save
+
+from bokeh.resources import CDN
+from bokeh.embed import file_html
+
+
+data = pd.read_csv("asm_data_for_ml.txt", sep='\t')
+del data['MJD']
+del data['error']
+del data['errorA']
+del data['errorB']
+del data['errorC']
+data['rateCA'] = data.rateC / data.rateA
+data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
+
+
+np.random.seed(0)
+
+X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
+          data_thr.rateC, data_thr.rateCA]
+Html_file = open("clustering_files/agglomerativeclustering.html", "w")
+
+# consider only 10000 data (spectralclustering memory complexity):
+ind = np.array(10000 * [1] + (X.shape[0] - 10000) * [0]).astype(bool)
+ind = shuffle(ind)
+data_thr10 = pd.DataFrame(X[ind])
+data_thr10.columns = data.columns
+
+scaler = StandardScaler()
+X = scaler.fit_transform(X)
+
+X = X[ind]
+
+km = AgglomerativeClustering(n_clusters=6)
+y = km.fit_predict(X)
+
+X0 = X[y==0]
+X1 = X[y==1]
+X2 = X[y==2]
+X3 = X[y==3]
+X4 = X[y==4]
+X5 = X[y==5]
+
+
+Html_file.close()

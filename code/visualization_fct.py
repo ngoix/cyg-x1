@@ -331,7 +331,8 @@ def plot_probs_bokeh_linked_brushing(data,
                                      plot_width=900, plot_height=300,
                                      # radius1=0.01,
                                      # radius2=30., line_width2=0,
-                                     title=None):
+                                     title=None,
+                                     title2=None):
     '''
     return a linked brushing interactive bokeh plot
     '''
@@ -364,7 +365,7 @@ def plot_probs_bokeh_linked_brushing(data,
         X = np.concatenate([np.array(
             data[name]).reshape(-1, 1) for name in list(data.columns)],
                            axis=1)
-        #X = shuffle(X)
+        # X = shuffle(X)
         a = X.shape[0] / 10
         data10 = pd.DataFrame(X[:a])
         data10.columns = data.columns
@@ -376,11 +377,11 @@ def plot_probs_bokeh_linked_brushing(data,
         source = ColumnDataSource(data)
         colors = [color_key[x] for x in data[pred_name]]
         n_samples = data.shape[0]
-    # for hmm10, fuse close clusters:
-    colors[(colors == 'red') + (colors == 'black')
-           + (colors == 'purple') + (colors == 'pink')] = 'red'
-    colors[(colors == 'yellow') + (colors == 'green')] = 'yellow'
-    # colors[(colors == 'grey') + (colors == 'brown')] = 'grey'
+    # # for hmm10, fuse close clusters:
+    # colors[(colors == 'red') + (colors == 'black')
+    #        + (colors == 'purple') + (colors == 'pink')] = 'red'
+    # colors[(colors == 'yellow') + (colors == 'green')] = 'yellow'
+    # # colors[(colors == 'grey') + (colors == 'brown')] = 'grey'
 
     fig.circle(x_name, y_name, source=source, color=colors)  # , radius=radius1
 
@@ -414,7 +415,7 @@ def plot_probs_bokeh_linked_brushing(data,
                   y_range=(-0.01, 1.01),
                   plot_width=plot_width,
                   plot_height=plot_height,
-                  title=title,
+                  title=title2,
                   tools=TOOLS)
 
     fig2.circle(range(n_samples), np.zeros(n_samples), source=source,
@@ -741,12 +742,6 @@ def interactive_transition_probability(data,
     ymin_p = np.percentile(data[y_name], 0.1)
     ymax_p = np.percentile(data[y_name], 99)
 
-    fig = Figure(x_range=(xmin_p, xmax_p),
-                 y_range=(ymin_p, ymax_p),
-                 plot_width=plot_width,
-                 plot_height=plot_height,
-                 title=title,
-                 tools=TOOLS)
 
     data_extended = data.copy(deep=True)
     data_extended['x_next'] = np.r_[data[x_name][1:],
@@ -766,6 +761,12 @@ def interactive_transition_probability(data,
                                       data[x_name][:-50]]
     data_extended['y_prev50'] = np.r_[data[y_name][-50:],
                                       data[y_name][:-50]]
+    fig = Figure(x_range=(xmin_p, xmax_p),
+                 y_range=(ymin_p, ymax_p),
+                 plot_width=plot_width,
+                 plot_height=plot_height,
+                 title='current step',
+                 tools=TOOLS)
 
     if percent10:
         X = np.concatenate([np.array(
@@ -815,44 +816,51 @@ def interactive_transition_probability(data,
     y2 = np.max([20 * np.ones(t.shape[0]), 350 * (t - 0.28)], axis=0)
     fig.line(t, y1, color='black')
     fig.line(t, y2, color='black')
-
     print n_samples
     fig2 = Figure(x_range=(xmin_p, xmax_p),
                   y_range=(ymin_p, ymax_p),
                   plot_width=plot_width,
                   plot_height=plot_height,
-                  title=title,
+                  title='1 step beyond',
                   tools=TOOLS)
 
     fig2.circle('x_next', 'y_next', source=source,
                 fill_color='white', line_color='black', radius=0.005)
+    fig2.line(t, y1, color='black')
+    fig2.line(t, y2, color='black')
 
     fig3 = Figure(x_range=(xmin_p, xmax_p),
                   y_range=(ymin_p, ymax_p),
                   plot_width=plot_width,
                   plot_height=plot_height,
-                  title=title,
+                  title='10 steps beyond',
                   tools=TOOLS)
     fig3.circle('x_next10', 'y_next10', source=source,
                 fill_color='white', line_color='black', radius=0.005)
+    fig3.line(t, y1, color='black')
+    fig3.line(t, y2, color='black')
 
     fig4 = Figure(x_range=(xmin_p, xmax_p),
                   y_range=(ymin_p, ymax_p),
                   plot_width=plot_width,
                   plot_height=plot_height,
-                  title=title,
+                  title='100 steps beyond',
                   tools=TOOLS)
     fig4.circle('x_next100', 'y_next100', source=source,
                 fill_color='white', line_color='black', radius=0.005)
+    fig4.line(t, y1, color='black')
+    fig4.line(t, y2, color='black')
 
     fig5 = Figure(x_range=(xmin_p, xmax_p),
                   y_range=(ymin_p, ymax_p),
                   plot_width=plot_width,
                   plot_height=plot_height,
-                  title=title,
+                  title='50 steps behind',
                   tools=TOOLS)
     fig5.circle('x_prev50', 'y_prev50', source=source,
                 fill_color='white', line_color='black', radius=0.005)
+    fig5.line(t, y1, color='black')
+    fig5.line(t, y2, color='black')
 
     p = gridplot([[fig5], [fig], [fig2], [fig3], [fig4]])
     return p

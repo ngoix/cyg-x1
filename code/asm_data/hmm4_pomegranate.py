@@ -26,7 +26,7 @@ data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
 
 
 np.random.seed(0)
-kmeans = True
+kmeans = False
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
           data_thr.rateC, data_thr.rateCA]

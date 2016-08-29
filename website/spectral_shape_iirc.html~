@@ -1,0 +1,4 @@
+<!DOCTYPE html>
+<video width="480" height="320" controls="controls">
+<source src="spectra_over_time.mp4" type="video/mp4">
+</video>

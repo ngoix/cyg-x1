@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html>
+  <head>
+		<!-- <meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/" /> -->
+		<!-- <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" /> -->
+		<link rel="stylesheet" href="jemdoc.css" type="text/css" />
+		<title>Cygnus-X-1</title>
+	</head>
+	<body>
+
+	  <table summary="Table for page layout." id="tlayout">
+			<tr valign="top">
+				<td id="layout-menu">
+					<div class="menu-category">Cyg-X-1</div>
+					<div class="menu-item"><a href="index.html" class="current">Home</a></div>
+					<div class="menu-item"><a href="spectral_shape_iirc.html">Spectral shape (PCA data) </a></div>
+					<!-- <div class="menu-item"><a href="video_asm.html">Biography</a></div> -->
+					<div class="menu-item"><a href="human.html">Human annotations scheme</a></div>
+
+					<div class="menu-item"><a href="hmm.html">Hidden Markov Model with 3 states</a></div>
+					<div class="menu-item"><a href="hmm5prior_pomegranate.html">Hidden Markov Model with 5 states</a></div>
+
+					<!-- <div class="menu-category">PCA data (IIRC)</div> -->
+					<!-- <div class="menu-item"><a href="iirc.html">Links</a></div> -->
+
+				</td>
+				<td id="layout-content">
+					<div id="toptitle">
+						<h1>Cyg-X-1</h1>
+					</div>
+
+<div class="infoblock">
+  Description... picture?
+</div>
+
+
+				</td>
+			</tr>
+		</table>
+	</body>
+</html>

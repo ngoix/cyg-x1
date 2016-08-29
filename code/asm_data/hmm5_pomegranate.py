@@ -1,3 +1,4 @@
+from sklearn.cluster.bicluster import SpectralCoclustering
 from sklearn.preprocessing import StandardScaler
 from sklearn.cluster import KMeans
 import itertools
@@ -27,7 +28,7 @@ data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
 
 
 np.random.seed(1)
-kmeans = True
+kmeans = False
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
           data_thr.rateC, data_thr.rateCA]
@@ -173,44 +174,29 @@ means = np.array([scaler.inverse_transform(means[j].reshape(1, -1)).T
 # Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 
-# single plot rateCA vs rate with predicted classes and ellipses:
 x = 5
 y = 1
 covs_xy = [covs[j][[x, y]][:, [x, y]] for j in range(len(covs))]
 means_xy = [means[j][[x, y]] for j in range(len(covs))]
 
-# # # #uncommment if log
-# for j in range(len(covs)):
-#     covs_xy[j][0] = np.exp(covs_xy[j][0]) - 1
-#     means_xy[j][0] = np.exp(means_xy[j][0]) - 1
+# # single plot rateCA vs rate with predicted classes and ellipses:
 
-single_plot = bokeh_datashader_plot(data_thr, covs=covs_xy, means=means_xy,
-                                    x_name='rateCA',
-                                    y_name='rate',
-                                    plot_width=900, plot_height=300,
-                                    pixel_width=3000, pixel_height=1000,
-                                    spread=True, color_key=color_key)
-html = file_html(single_plot, CDN, "pomegranate hmm with 3 components")
-Html_file.write(html)
-# Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
-# Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
-# Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+# # # # #uncommment if log
+# # for j in range(len(covs)):
+# #     covs_xy[j][0] = np.exp(covs_xy[j][0]) - 1
+# #     means_xy[j][0] = np.exp(means_xy[j][0]) - 1
 
-T = np.exp(hmm.dense_transition_matrix())[:5, :5]
-plt.imshow(T, interpolation='nearest', cmap=plt.cm.Blues)
-plt.colorbar()
-for i, j in itertools.product(range(T.shape[0]), range(T.shape[1])):
-        plt.text(j, i, int(T[i, j]*100),
-                 horizontalalignment="center",
-                 color="white" if T[i, j] > 0.5 else "black")
-plt.title('log_likelihood:%0.3f' % hmm.log_probability(X))
-plt.savefig('hmm_pomegranate_files/hmm5_pomegranate_transition.png')
-data_uri = open(
-    'hmm_pomegranate_files/hmm5_pomegranate_transition.png',
-    'rb').read().encode('base64').replace('\n', '')
-img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
-Html_file.write(img_tag)
-
+# single_plot = bokeh_datashader_plot(data_thr, covs=covs_xy, means=means_xy,
+#                                     x_name='rateCA',
+#                                     y_name='rate',
+#                                     plot_width=900, plot_height=300,
+#                                     pixel_width=3000, pixel_height=1000,
+#                                     spread=True, color_key=color_key)
+# html = file_html(single_plot, CDN, "pomegranate hmm with 3 components")
+# Html_file.write(html)
+# # Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+# # Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+# # Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 
 # # histogram rateCA:
 # p = Figure()
@@ -243,11 +229,53 @@ for j in range(probs.shape[1]):
 linkbru = plot_probs_bokeh_linked_brushing(data_probs, prob_names=prob_names,
                                            color_key=color_key,
                                            x_name='rateCA', y_name='rate',
-                                           covs=covs_xy, means=means_xy)
+                                           covs=covs_xy, means=means_xy,
+                                           title='Hidden Markov Model with 5 states',
+                                           title2='State belonging and state probability')
 html = file_html(linkbru, CDN, "pomegranate hmm with 3 components")
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write(html)
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
+
+
+# transition matrix:
+T = np.exp(hmm.dense_transition_matrix())[:5, :5]
+plt.imshow(T, interpolation='nearest', cmap=plt.cm.Blues)
+plt.colorbar()
+for i, j in itertools.product(range(T.shape[0]), range(T.shape[1])):
+        plt.text(j, i, int(T[i, j]*100),
+                 horizontalalignment="center",
+                 color=(color_key[i] if i == j
+                        else "white" if T[i, j] > 0.5
+                        else "black"))
+plt.title('Transition probability matrix of the HMM. \n Log likelihood value: %0.3f' % hmm.log_probability(X))
+plt.savefig('hmm_pomegranate_files/hmm5_pomegranate_transition.png')
+data_uri = open(
+    'hmm_pomegranate_files/hmm5_pomegranate_transition.png',
+    'rb').read().encode('base64').replace('\n', '')
+img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+Html_file.write(img_tag)
+
+# # biclusetering on T:
+# biclust = SpectralCoclustering(n_clusters=4)
+# biclust.fit(T)
+# TT = T[np.argsort(biclust.row_labels_)]
+# TT = TT[:, np.argsort(biclust.column_labels_)]
+# plt.imshow(T, interpolation='nearest', cmap=plt.cm.Blues)
+# plt.colorbar()
+# for i, j in itertools.product(range(T.shape[0]), range(T.shape[1])):
+#         plt.text(j, i, int(T[i, j]*100),
+#                  horizontalalignment="center",
+#                  color=(color_key[i] if i == j
+#                         else "white" if T[i, j] > 0.5
+#                         else "black"))
+# plt.title('log_likelihood:%0.3f' % hmm.log_probability(X))
+# plt.savefig('hmm_pomegranate_files/hmm5_pomegranate_transition.png')
+# data_uri = open(
+#     'hmm_pomegranate_files/hmm5_pomegranate_transition.png',
+#     'rb').read().encode('base64').replace('\n', '')
+# img_tag = '<img src="data:image/png;base64,{0}">'.format(data_uri)
+# Html_file.write(img_tag)
 
 
 # interactive transition probability :

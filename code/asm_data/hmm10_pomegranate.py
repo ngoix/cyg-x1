@@ -25,7 +25,7 @@ data_thr = mask(data, 'orbit')  # rm too large values except for 'orbit'
 
 
 np.random.seed(0)
-kmeans = True
+kmeans = False
 
 X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
           data_thr.rateC, data_thr.rateCA]
@@ -274,7 +274,7 @@ for i, j in itertools.product(range(T.shape[0]), range(T.shape[1])):
         plt.text(j, i, int(T[i, j]*100),
                  horizontalalignment="center",
                  color="white" if T[i, j] > 0.5 else "black")
-plt.title('log_likelihood:%0.3f' % hmm.log_probability(X))
+plt.title('log_likelihood:%0.3f \n state order:' + str(color_key) % hmm.log_probability(X))
 plt.savefig('hmm_pomegranate_files/hmm10_pomegranate_transition.png')
 data_uri = open(
     'hmm_pomegranate_files/hmm10_pomegranate_transition.png',
