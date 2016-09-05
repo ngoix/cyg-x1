@@ -180,7 +180,7 @@ linkbru = plot_probs_bokeh_linked_brushing(data_probs, prob_names=prob_names,
                                            color_key=color_key,
                                            x_name='rateCA', y_name='rate',
                                            covs=covs_xy, means=means_xy,
-                                           title='Hidden Markov Model with 3 states',
+                                           title='Hidden Markov Model with 3 states  \n Visualization on the first 10% samples',
                                            title2='State belonging and state probability')
 html = file_html(linkbru, CDN, "pomegranate hmm with 3 components")
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')

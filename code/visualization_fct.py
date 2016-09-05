@@ -765,7 +765,7 @@ def interactive_transition_probability(data,
                  y_range=(ymin_p, ymax_p),
                  plot_width=plot_width,
                  plot_height=plot_height,
-                 title='current step',
+                 title='current step  \n (Visualization on the first 10% samples)',
                  tools=TOOLS)
 
     if percent10:

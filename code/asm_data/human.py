@@ -26,7 +26,7 @@ X = np.c_[data_thr.orbit, data_thr.rate, data_thr.rateA, data_thr.rateB,
 
 Html_file = open("human_annotations_files/human.html", "w")
 
-Html_file.write(' \n <video width="480" height="320" controls="controls"> \n <source src="../streaming_asm.mp4" type="video/mp4"> \n </video>')
+Html_file.write(' \n <video width="480" height="320" controls="controls"> \n <source src="streaming_asm.mp4" type="video/mp4"> \n </video>')
 
 scaler = StandardScaler()
 X = scaler.fit_transform(X)
@@ -54,7 +54,7 @@ p = interactive_transition_probability(data_thr,
                                        color_key=color_key,
                                        x_name='rateCA', y_name='rate',
                                        covs=None, means=None)
-html = file_html(p, CDN, "pomegranate hmm with 3 components")
+html = file_html(p, CDN, "interactive plot with human annotations")
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
 Html_file.write(html)
 Html_file.write('<br><br><br><br><br><br><br><br><br><br><br><br>')
